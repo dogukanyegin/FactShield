@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Shield, Lock, FileText, Trash2, LogOut, ChevronLeft, Paperclip } from 'lucide-react';
 
-// --- AYARLAR (SUPABASE BİLGİLERİNİ BURAYA YAPIŞTIR) ---
-// Tırnakların içine Supabase'den aldığın bilgileri yapıştır.
-// --- AYARLAR ---
-// URL'yi tırnak içine almayı unutma!
+/// --- AYARLAR ---
+// URL (Tırnaklara dikkat)
 const SUPABASE_URL = "https://onnsaeorzwzgusdamqdi.supabase.co"; 
+
+// KEY (Senin attığın 'eyJ'li doğru anahtar)
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ubnNhZW9yend6Z3VzZGFtcWRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwOTA1MzcsImV4cCI6MjA4NjY2NjUzN30.Z89JNhn0c1X0FgPP5w45UxzQ3_rg2XSdApyPLI1x1BQ";
 interface Post {
   id: number;
@@ -339,5 +339,6 @@ const App = () => {
 
 const root = createRoot(document.getElementById('root')!);
 root.render(<App />);
+
 
 
