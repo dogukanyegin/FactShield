@@ -169,7 +169,7 @@ const App = () => {
     <div className="space-y-6">
       {loading ? (
          <div className="text-center text-osint-green animate-pulse font-mono">
-            > BAĞLANTI KURULUYOR...
+            &gt; BAĞLANTI KURULUYOR...
          </div>
       ) : posts.length === 0 ? (
         <div className="p-8 text-center text-osint-muted bg-osint-card rounded border border-[#333]">
