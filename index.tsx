@@ -4,10 +4,10 @@ import { Shield, Lock, FileText, Trash2, LogOut, ChevronLeft, Paperclip } from '
 
 // --- AYARLAR (SUPABASE BİLGİLERİNİ BURAYA YAPIŞTIR) ---
 // Tırnakların içine Supabase'den aldığın bilgileri yapıştır.
-const SUPABASE_URL = https://onnsaeorzwzgusdamqdi.supabase.co; 
+// --- AYARLAR ---
+// URL'yi tırnak içine almayı unutma!
+const SUPABASE_URL = "https://onnsaeorzwzgusdamqdi.supabase.co"; 
 const SUPABASE_KEY = "sb_publishable_CfyqFcbhHfB-NUgFgUOeEg_5KTX2a01i";
-
-// --- TİPLER ---
 interface Post {
   id: number;
   title: string;
@@ -339,3 +339,4 @@ const App = () => {
 
 const root = createRoot(document.getElementById('root')!);
 root.render(<App />);
+
