@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createClient } from "@supabase/supabase-js";
 import { Lock, FileText, Trash2, ChevronLeft, Paperclip } from "lucide-react";
 
 /**
  * =========================
- *  SUPABASE
+ *  SUPABASE AYARLARI
  * =========================
  */
 const SUPABASE_URL = "https://onnsaeorzwzgusdamqdi.supabase.co";
@@ -14,7 +14,7 @@ const SUPABASE_ANON_KEY =
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ✅ TABLO ADI KESİN: public.factshield
+// ✅ TABLO ADI (SENİN DB’DE: public.factshield)
 const TABLE = "factshield";
 
 // UI: admin/admin123 -> Supabase Auth email ile giriş
@@ -30,7 +30,7 @@ interface Post {
   title: string;
   author: string;
   content: string;
-  date: string;
+  date: string; // yyyy-mm-dd
   files: string[];
 }
 
@@ -38,37 +38,43 @@ interface User {
   username: string;
 }
 
-type factshieldRow = {
-  id: number | string; // bigint bazen string gelebilir
+type FactShieldRow = {
+  id: number | string;
   title: string;
   author: string | null;
   content: string | null;
-  date: string | null;
-  files: string | null; // text (JSON string)
+  date: string | null; // timestamp string
+  files: unknown; // jsonb array bekliyoruz (ama tolerate edelim)
 };
 
-function parseFiles(filesText: string | null): string[] {
-  if (!filesText) return [];
-  try {
-    const arr = JSON.parse(filesText);
-    if (Array.isArray(arr)) return arr.map(String);
-  } catch {
-    // ignore
-  }
-  return filesText
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+function toDateYMD(value: string | null): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value).slice(0, 10);
+  return d.toISOString().slice(0, 10);
 }
 
-function serializeFiles(files: string[]): string {
-  return JSON.stringify(files ?? []);
+function parseFiles(v: unknown): string[] {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map((x) => String(x));
+  if (typeof v === "string") {
+    // bazen text json olabilir
+    try {
+      const arr = JSON.parse(v);
+      if (Array.isArray(arr)) return arr.map(String);
+    } catch {
+      // ignore
+    }
+    return v
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
 }
 
 function isAbortError(err: unknown) {
-  if (err instanceof DOMException && err.name === "AbortError") return true;
-  if (typeof err === "object" && err && "name" in err) return (err as any).name === "AbortError";
-  return false;
+  return err instanceof DOMException && err.name === "AbortError";
 }
 
 const App = () => {
@@ -80,11 +86,17 @@ const App = () => {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  const [publishing, setPublishing] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
-  const [notifications, setNotifications] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [notifications, setNotifications] = useState<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
 
-  const activePost = useMemo(() => posts.find((p) => p.id === activePostId) ?? null, [posts, activePostId]);
+  const activePost = useMemo(
+    () => posts.find((p) => p.id === activePostId) ?? null,
+    [posts, activePostId]
+  );
 
   const showNotification = (msg: string, type: "success" | "error") => {
     setNotifications({ msg, type });
@@ -93,7 +105,7 @@ const App = () => {
 
   /**
    * =========================
-   *  LOAD POSTS
+   *  DATA LOAD
    * =========================
    */
   const loadPosts = async () => {
@@ -109,12 +121,12 @@ const App = () => {
         return;
       }
 
-      const mapped: Post[] = ((data ?? []) as factshieldRow[]).map((row) => ({
+      const mapped: Post[] = ((data ?? []) as FactShieldRow[]).map((row) => ({
         id: Number(row.id),
         title: row.title,
         author: row.author ?? "NorthByte Analyst",
         content: row.content ?? "",
-        date: row.date ?? "",
+        date: toDateYMD(row.date),
         files: parseFiles(row.files),
       }));
 
@@ -136,6 +148,7 @@ const App = () => {
 
     (async () => {
       const { data, error } = await supabase.auth.getSession();
+
       if (!mounted) return;
 
       if (error) showNotification(error.message, "error");
@@ -214,7 +227,6 @@ const App = () => {
       showNotification("Unauthorized: Please login", "error");
       return;
     }
-    if (publishing) return;
 
     const form = e.target as HTMLFormElement;
     const title = (form.elements.namedItem("title") as HTMLInputElement).value;
@@ -224,16 +236,18 @@ const App = () => {
     const fileInput = form.elements.namedItem("files") as HTMLInputElement;
     const fileNames = fileInput.files ? Array.from(fileInput.files).map((f) => f.name) : [];
 
-    const payload = {
-      title,
-      author,
-      content,
-      date: new Date().toISOString().slice(0, 10),
-      files: serializeFiles(fileNames),
-    };
-
-    setPublishing(true);
+    setIsPublishing(true);
     try {
+      const payload = {
+        title,
+        author,
+        content,
+        // DB'de timestamp var: ISO gönder
+        date: new Date().toISOString(),
+        // jsonb array
+        files: fileNames,
+      };
+
       const { data, error } = await supabase
         .from(TABLE)
         .insert(payload)
@@ -245,13 +259,13 @@ const App = () => {
         return;
       }
 
-      const row = data as factshieldRow;
+      const row = data as FactShieldRow;
       const newPost: Post = {
         id: Number(row.id),
         title: row.title,
         author: row.author ?? "NorthByte Analyst",
         content: row.content ?? "",
-        date: row.date ?? "",
+        date: toDateYMD(row.date),
         files: parseFiles(row.files),
       };
 
@@ -261,7 +275,7 @@ const App = () => {
     } catch (err) {
       if (!isAbortError(err)) showNotification(String(err), "error");
     } finally {
-      setPublishing(false);
+      setIsPublishing(false);
     }
   };
 
@@ -270,6 +284,7 @@ const App = () => {
       showNotification("Unauthorized: Please login", "error");
       return;
     }
+
     if (!confirm("Confirm Deletion: This action is irreversible.")) return;
 
     const { error } = await supabase.from(TABLE).delete().eq("id", id);
@@ -284,7 +299,7 @@ const App = () => {
 
   /**
    * =========================
-   *  UI (TASARIM AYNI)
+   *  VIEWS (UI AYNI)
    * =========================
    */
   const renderHome = () => (
@@ -317,8 +332,10 @@ const App = () => {
               <span>ANALYST: {post.author}</span>
             </div>
 
-            {/* ✅ KISIT YOK: line-clamp kaldırıldı */}
-            <p className="text-osint-text mb-6 font-sans whitespace-pre-wrap">{post.content}</p>
+            {/* ✅ KISIT YOK: line-clamp yok */}
+            <p className="text-osint-text mb-6 font-sans whitespace-pre-wrap">
+              {post.content}
+            </p>
 
             <button
               onClick={() => {
@@ -340,11 +357,16 @@ const App = () => {
 
     return (
       <div className="bg-osint-card border border-[#333] rounded-lg p-8 shadow-xl">
-        <button onClick={() => setView("home")} className="mb-6 flex items-center text-osint-green hover:underline font-mono">
+        <button
+          onClick={() => setView("home")}
+          className="mb-6 flex items-center text-osint-green hover:underline font-mono"
+        >
           <ChevronLeft size={16} className="mr-1" /> RETURN TO INDEX
         </button>
 
-        <h1 className="text-3xl font-mono text-white mb-2 border-b-2 border-osint-green pb-4">{activePost.title}</h1>
+        <h1 className="text-3xl font-mono text-white mb-2 border-b-2 border-osint-green pb-4">
+          {activePost.title}
+        </h1>
         <div className="text-sm text-osint-muted mb-8 font-mono flex gap-4">
           <span>ID: #{activePost.id}</span>
           <span>DATE: {activePost.date}</span>
@@ -362,7 +384,9 @@ const App = () => {
               {activePost.files.map((file, idx) => (
                 <li key={idx} className="flex items-center text-osint-green font-mono">
                   <Paperclip size={16} className="mr-2" />
-                  <span className="opacity-80">{file}</span>
+                  <span className="cursor-not-allowed opacity-80" title="File download simulated">
+                    {file}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -378,7 +402,9 @@ const App = () => {
         <div className="text-center mb-6">
           <Lock size={48} className="mx-auto text-osint-green mb-2" />
           <h2 className="text-2xl font-mono text-white">SECURE LOGIN</h2>
-          <p className="text-xs text-osint-muted uppercase tracking-widest mt-1">Authorized Personnel Only</p>
+          <p className="text-xs text-osint-muted uppercase tracking-widest mt-1">
+            Authorized Personnel Only
+          </p>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -401,7 +427,10 @@ const App = () => {
               required
             />
           </div>
-          <button type="submit" className="w-full bg-osint-green text-black font-bold font-mono py-3 rounded hover:bg-opacity-90 transition-all mt-4">
+          <button
+            type="submit"
+            className="w-full bg-osint-green text-black font-bold font-mono py-3 rounded hover:bg-opacity-90 transition-all mt-4"
+          >
             AUTHENTICATE
           </button>
         </form>
@@ -422,27 +451,49 @@ const App = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-osint-green font-mono text-sm mb-1">CASE TITLE</label>
-              <input name="title" type="text" className="w-full bg-[#121212] border border-[#333] text-white p-3 rounded focus:outline-none focus:border-osint-green font-mono" required />
+              <input
+                name="title"
+                type="text"
+                className="w-full bg-[#121212] border border-[#333] text-white p-3 rounded focus:outline-none focus:border-osint-green font-mono"
+                required
+              />
             </div>
             <div>
               <label className="block text-osint-green font-mono text-sm mb-1">ANALYST</label>
-              <input name="author" type="text" defaultValue="NorthByte Analyst" className="w-full bg-[#121212] border border-[#333] text-white p-3 rounded focus:outline-none focus:border-osint-green font-mono" required />
+              <input
+                name="author"
+                type="text"
+                defaultValue="NorthByte Analyst"
+                className="w-full bg-[#121212] border border-[#333] text-white p-3 rounded focus:outline-none focus:border-osint-green font-mono"
+                required
+              />
             </div>
           </div>
           <div>
             <label className="block text-osint-green font-mono text-sm mb-1">INTELLIGENCE DATA</label>
-            <textarea name="content" rows={8} className="w-full bg-[#121212] border border-[#333] text-white p-3 rounded focus:outline-none focus:border-osint-green font-sans" placeholder="Enter analysis here..." required />
+            <textarea
+              name="content"
+              rows={8}
+              className="w-full bg-[#121212] border border-[#333] text-white p-3 rounded focus:outline-none focus:border-osint-green font-sans"
+              placeholder="Enter analysis here..."
+              required
+            ></textarea>
           </div>
           <div>
             <label className="block text-osint-green font-mono text-sm mb-1">ATTACHMENTS</label>
-            <input name="files" type="file" multiple className="block w-full text-sm text-osint-muted file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#121212] file:text-osint-green hover:file:bg-[#333]" />
+            <input
+              name="files"
+              type="file"
+              multiple
+              className="block w-full text-sm text-osint-muted file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#121212] file:text-osint-green hover:file:bg-[#333]"
+            />
           </div>
           <button
             type="submit"
-            disabled={publishing}
-            className={`bg-osint-green text-black font-bold font-mono px-6 py-3 rounded hover:bg-opacity-90 transition-all ${publishing ? "opacity-60 cursor-not-allowed" : ""}`}
+            disabled={isPublishing}
+            className="bg-osint-green text-black font-bold font-mono px-6 py-3 rounded hover:bg-opacity-90 transition-all disabled:opacity-60"
           >
-            {publishing ? "PUBLISHING..." : "PUBLISH TO NETWORK"}
+            {isPublishing ? "PUBLISHING..." : "PUBLISH TO NETWORK"}
           </button>
         </form>
       </div>
@@ -464,7 +515,10 @@ const App = () => {
                   <td className="p-3 text-osint-muted">{post.date}</td>
                   <td className="p-3 text-white">{post.title}</td>
                   <td className="p-3">
-                    <button onClick={() => handleDeletePost(post.id)} className="text-osint-danger hover:text-red-400 flex items-center">
+                    <button
+                      onClick={() => handleDeletePost(post.id)}
+                      className="text-osint-danger hover:text-red-400 flex items-center"
+                    >
                       <Trash2 size={16} className="mr-1" /> DELETE
                     </button>
                   </td>
@@ -490,11 +544,15 @@ const App = () => {
     <div className="min-h-screen flex flex-col font-sans selection:bg-osint-green selection:text-black">
       <header className="border-b border-[#333] py-8 text-center bg-[#121212]">
         <div className="max-w-4xl mx-auto px-4">
-          <h1 className="text-4xl md:text-5xl font-mono text-white mb-2 tracking-tighter cursor-pointer" onClick={() => setView("home")}>
+          <h1
+            className="text-4xl md:text-5xl font-mono text-white mb-2 tracking-tighter cursor-pointer"
+            onClick={() => setView("home")}
+          >
             Fact<span className="text-osint-green">Shield</span>.no
           </h1>
-          <p className="text-osint-muted font-sans text-lg mb-4">Sannhetens Voktere - Vokter av Fakta, Ikke Meninger.</p>
-
+          <p className="text-osint-muted font-sans text-lg mb-4">
+            Sannhetens Voktere - Vokter av Fakta, Ikke Meninger.
+          </p>
           <div className="text-xs font-mono text-osint-green">
             POWERED BY{" "}
             <a href="#" className="font-bold underline decoration-dotted">
@@ -503,13 +561,19 @@ const App = () => {
           </div>
 
           <nav className="mt-6 flex justify-center space-x-6 text-sm font-mono text-osint-muted">
-            <button onClick={() => setView("home")} className={`hover:text-osint-green transition-colors ${view === "home" ? "text-white" : ""}`}>
+            <button
+              onClick={() => setView("home")}
+              className={`hover:text-osint-green transition-colors ${view === "home" ? "text-white" : ""}`}
+            >
               HOME
             </button>
 
             {canShowAdminNav ? (
               <>
-                <button onClick={() => setView("admin")} className={`hover:text-osint-green transition-colors ${view === "admin" ? "text-white" : ""}`}>
+                <button
+                  onClick={() => setView("admin")}
+                  className={`hover:text-osint-green transition-colors ${view === "admin" ? "text-white" : ""}`}
+                >
                   DASHBOARD
                 </button>
                 <button onClick={handleLogout} className="hover:text-osint-danger transition-colors flex items-center">
@@ -517,7 +581,10 @@ const App = () => {
                 </button>
               </>
             ) : (
-              <button onClick={() => setView("login")} className={`hover:text-osint-green transition-colors ${view === "login" ? "text-white" : ""}`}>
+              <button
+                onClick={() => setView("login")}
+                className={`hover:text-osint-green transition-colors ${view === "login" ? "text-white" : ""}`}
+              >
                 ADMIN ACCESS
               </button>
             )}
@@ -552,7 +619,5 @@ const App = () => {
   );
 };
 
-// ✅ sadece 1 kez
 const root = createRoot(document.getElementById("root")!);
 root.render(<App />);
-
