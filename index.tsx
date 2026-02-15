@@ -1,6 +1,9 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import App from "./App"; // src/App.tsx varsa doğru
+import "./index.css";    // varsa
+
+createRoot(document.getElementById("root")!).render(<App />);
 
 type Post = {
   id: number;
