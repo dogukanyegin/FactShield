@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Shield, Lock, FileText, Trash2, ChevronLeft, Paperclip, Server, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Shield, Lock, FileText, Trash2, LogOut, ChevronLeft, Paperclip, User as UserIcon } from 'lucide-react';
 
-// --- TİPLER ---
+// Types
 interface Post {
   id: number;
   title: string;
@@ -16,46 +16,43 @@ interface User {
   username: string;
 }
 
+// ❌ ARTIK BURASI BOŞ! (Silent Echo SİLİNDİ)
+// Burası sadece tip tanımı için boş duruyor, siteye bir şey eklemez.
+const INITIAL_POSTS: Post[] = []; 
+
 const App = () => {
-  // State Tanımları
+  // State
   const [view, setView] = useState<'home' | 'login' | 'admin' | 'post'>('home');
   const [activePostId, setActivePostId] = useState<number | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]); // BAŞLANGIÇTA LİSTE BOMBOŞ
+  const [posts, setPosts] = useState<Post[]>([]);
   const [notifications, setNotifications] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
 
-  // --- LOCALSTORAGE İŞLEMLERİ (Backend Yerine Tarayıcı Hafızası) ---
-
+  // ✅ VERİLERİ ÇEKME MANTIĞI (DÜZELTİLDİ)
   useEffect(() => {
-    // Sayfa açılınca sadece senin kaydettiklerini getir
-    // O "Initial Data" saçmalığı burada yok artık.
     const storedPosts = localStorage.getItem('factshield_posts');
+    
     if (storedPosts) {
-      try {
-        setPosts(JSON.parse(storedPosts));
-      } catch (e) {
-        setPosts([]);
-      }
+      // Hafızada ne varsa onu getir (Hepsini listele)
+      setPosts(JSON.parse(storedPosts));
     } else {
-      setPosts([]); // Eğer veri yoksa boş başla
+      // Hafıza boşsa BOŞ KALSIN. (Silent Echo ekleme yapma!)
+      setPosts([]); 
     }
 
-    // Kullanıcı oturumu kontrolü
     const storedUser = localStorage.getItem('factshield_user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
-    setLoading(false);
   }, []);
 
-  // Verileri kaydetme fonksiyonu
-  const savePostsToStorage = (newPosts: Post[]) => {
+  // Persist posts
+  const savePosts = (newPosts: Post[]) => {
     setPosts(newPosts);
     localStorage.setItem('factshield_posts', JSON.stringify(newPosts));
   };
 
-  // --- GİRİŞ / ÇIKIŞ ---
+  // Login Logic
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -67,9 +64,9 @@ const App = () => {
       setUser(newUser);
       localStorage.setItem('factshield_user', JSON.stringify(newUser));
       setView('admin');
-      showNotification('Erişim İzni Verildi', 'success');
+      showNotification('Access Granted', 'success');
     } else {
-      showNotification('Hatalı Kimlik Bilgisi', 'error');
+      showNotification('Access Denied: Invalid Credentials', 'error');
     }
   };
 
@@ -77,48 +74,40 @@ const App = () => {
     setUser(null);
     localStorage.removeItem('factshield_user');
     setView('home');
-    showNotification('Oturum Kapatıldı', 'success');
+    showNotification('Logged Out', 'success');
   };
 
-  // --- POST EKLEME / SİLME ---
+  // Post Logic (YENİ EKLENENİ LİSTEYE ALIR)
   const handleAddPost = (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const title = (form.elements.namedItem('title') as HTMLInputElement).value;
+    const author = (form.elements.namedItem('author') as HTMLInputElement).value;
     const content = (form.elements.namedItem('content') as HTMLTextAreaElement).value;
-    const author = (form.elements.namedItem('author') as HTMLInputElement).value || user?.username || 'Bilinmeyen';
-    
-    // Dosya isimlerini al (Sadece görüntü olarak)
     const fileInput = form.elements.namedItem('files') as HTMLInputElement;
     const fileNames = fileInput.files ? Array.from(fileInput.files).map(f => f.name) : [];
 
     const newPost: Post = {
-      id: Date.now(), // Benzersiz ID
+      id: Date.now(),
       title,
-      content,
       author,
+      content,
       date: new Date().toISOString().split('T')[0],
       files: fileNames
     };
 
-    // Yeni veriyi ekle ve kaydet
+    // Yeni postu mevcutların üzerine ekle (HEPSİNİ LİSTELE)
     const updatedPosts = [newPost, ...posts];
-    savePostsToStorage(updatedPosts);
     
+    savePosts(updatedPosts);
     form.reset();
-    showNotification('Kayıt Başarıyla Eklendi', 'success');
+    showNotification('Analysis Published to Network', 'success');
   };
 
   const handleDeletePost = (id: number) => {
-    if (confirm('Bu kaydı silmek istediğine emin misin?')) {
-      const updatedPosts = posts.filter(p => p.id !== id);
-      savePostsToStorage(updatedPosts);
-      showNotification('Kayıt Silindi', 'success');
-      
-      if (activePostId === id) {
-        setActivePostId(null);
-        setView('home');
-      }
+    if (confirm('Confirm Deletion: This action is irreversible.')) {
+      savePosts(posts.filter(p => p.id !== id));
+      showNotification('Record Expunged', 'success');
     }
   };
 
@@ -127,45 +116,35 @@ const App = () => {
     setTimeout(() => setNotifications(null), 3000);
   };
 
-  // --- HTML ÇIKTILARI (RENDER) ---
-
+  // Views
   const renderHome = () => (
     <div className="space-y-6">
-      {loading ? (
-         <div className="text-center text-osint-green animate-pulse font-mono">
-            &gt; SİSTEM YÜKLENİYOR...
-         </div>
-      ) : posts.length === 0 ? (
-        <div className="p-8 text-center bg-osint-card rounded border border-[#333]">
-          <AlertTriangle className="mx-auto h-12 w-12 text-osint-muted mb-4" />
-          <p className="text-osint-muted font-mono">VERİTABANI BOŞ.</p>
-          <p className="text-xs text-gray-600 mt-2">Henüz giriş yapılmamış.</p>
+      {posts.length === 0 ? (
+        <div className="p-8 text-center text-osint-muted bg-osint-card rounded border border-[#333]">
+          <p className="font-mono text-lg">NO INTELLIGENCE RECORDS FOUND.</p>
+          <p className="text-xs mt-2 opacity-50">Database is empty. Login to Admin Panel to add records.</p>
         </div>
       ) : (
         posts.map(post => (
-          <article key={post.id} className="bg-osint-card border border-[#333] rounded-lg p-6 shadow-lg hover:border-osint-green transition-all duration-300 group">
-            <div className="flex justify-between items-start mb-2">
-              <h2 
-                className="text-2xl font-mono text-white cursor-pointer group-hover:text-osint-green hover:underline decoration-dotted underline-offset-4"
-                onClick={() => { setActivePostId(post.id); setView('post'); }}
-              >
-                {post.title}
-              </h2>
-              <Lock size={16} className="text-osint-muted group-hover:text-osint-green" />
+          <article key={post.id} className="bg-osint-card border border-[#333] rounded-lg p-6 shadow-lg hover:border-osint-green transition-colors">
+            <h2 
+              className="text-2xl font-mono text-white mb-2 cursor-pointer hover:text-osint-green"
+              onClick={() => { setActivePostId(post.id); setView('post'); }}
+            >
+              {post.title}
+            </h2>
+            <div className="text-sm text-osint-muted mb-4 font-mono">
+              <span className="mr-4">DATE: {post.date}</span>
+              <span>ANALYST: {post.author}</span>
             </div>
-            <div className="text-xs text-osint-muted mb-4 font-mono flex items-center gap-4">
-              <span className="flex items-center"><CheckCircle size={12} className="mr-1" /> ONAYLI</span>
-              <span>TARİH: {post.date}</span>
-              <span>YAZAR: {post.author}</span>
-            </div>
-            <p className="text-osint-text mb-6 line-clamp-3 font-sans border-l-2 border-[#333] pl-4">
+            <p className="text-osint-text mb-6 line-clamp-3 font-sans opacity-80">
               {post.content}
             </p>
             <button 
               onClick={() => { setActivePostId(post.id); setView('post'); }}
-              className="inline-flex items-center text-xs tracking-widest text-osint-green border border-osint-green px-6 py-2 rounded hover:bg-osint-green hover:text-black font-mono font-bold transition-all uppercase"
+              className="inline-flex items-center text-osint-green border border-osint-green px-4 py-2 rounded hover:bg-osint-green hover:text-black font-mono font-bold transition-all"
             >
-              [ İncele ]
+              READ FULL ANALYSIS
             </button>
           </article>
         ))
@@ -175,36 +154,36 @@ const App = () => {
 
   const renderPostDetail = () => {
     const post = posts.find(p => p.id === activePostId);
-    if (!post) return null;
+    if (!post) return <div>Post not found</div>;
 
     return (
       <div className="bg-osint-card border border-[#333] rounded-lg p-8 shadow-xl">
         <button 
-          onClick={() => { setActivePostId(null); setView('home'); }} 
+          onClick={() => setView('home')} 
           className="mb-6 flex items-center text-osint-green hover:underline font-mono"
         >
-          <ChevronLeft size={16} className="mr-1" /> LİSTEYE DÖN
+          <ChevronLeft size={16} className="mr-1" /> RETURN TO INDEX
         </button>
         
         <h1 className="text-3xl font-mono text-white mb-2 border-b-2 border-osint-green pb-4">{post.title}</h1>
         <div className="text-sm text-osint-muted mb-8 font-mono flex gap-4">
           <span>ID: #{post.id}</span>
-          <span>TARİH: {post.date}</span>
-          <span>YAZAR: {post.author}</span>
+          <span>DATE: {post.date}</span>
+          <span>ANALYST: {post.author}</span>
         </div>
 
-        <div className="prose prose-invert max-w-none font-sans whitespace-pre-wrap text-lg leading-relaxed mb-8 text-gray-300">
+        <div className="prose prose-invert max-w-none font-sans whitespace-pre-wrap text-lg leading-relaxed mb-8">
           {post.content}
         </div>
 
         {post.files.length > 0 && (
           <div className="mt-8 pt-6 border-t border-[#333]">
-            <h3 className="text-white font-mono text-lg mb-4">EKLİ DOSYALAR</h3>
+            <h3 className="text-white font-mono text-lg mb-4">EVIDENCE VAULT</h3>
             <ul className="space-y-2">
               {post.files.map((file, idx) => (
                 <li key={idx} className="flex items-center text-osint-green font-mono">
                   <Paperclip size={16} className="mr-2" />
-                  <span className="opacity-80">{file}</span>
+                  <span className="cursor-not-allowed opacity-80" title="File download simulated">{file}</span>
                 </li>
               ))}
             </ul>
@@ -219,12 +198,12 @@ const App = () => {
       <div className="bg-osint-card border border-[#333] rounded-lg p-8 shadow-xl">
         <div className="text-center mb-6">
           <Lock size={48} className="mx-auto text-osint-green mb-2" />
-          <h2 className="text-2xl font-mono text-white">GÜVENLİ GİRİŞ</h2>
-          <p className="text-xs text-osint-muted uppercase tracking-widest mt-1">Yetkili Personel</p>
+          <h2 className="text-2xl font-mono text-white">SECURE LOGIN</h2>
+          <p className="text-xs text-osint-muted uppercase tracking-widest mt-1">Authorized Personnel Only</p>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-osint-green font-mono text-sm mb-1">KULLANICI ADI</label>
+            <label className="block text-osint-green font-mono text-sm mb-1">CODENAME</label>
             <input 
               name="username" 
               type="text" 
@@ -233,7 +212,7 @@ const App = () => {
             />
           </div>
           <div>
-            <label className="block text-osint-green font-mono text-sm mb-1">ŞİFRE</label>
+            <label className="block text-osint-green font-mono text-sm mb-1">ACCESS KEY</label>
             <input 
               name="password" 
               type="password" 
@@ -245,11 +224,11 @@ const App = () => {
             type="submit" 
             className="w-full bg-osint-green text-black font-bold font-mono py-3 rounded hover:bg-opacity-90 transition-all mt-4"
           >
-            SİSTEME GİR
+            AUTHENTICATE
           </button>
         </form>
         <div className="mt-4 text-center text-xs text-osint-muted">
-          <p>Varsayılan: admin / admin123</p>
+          <p>Demo Credentials: admin / admin123</p>
         </div>
       </div>
     </div>
@@ -257,15 +236,15 @@ const App = () => {
 
   const renderAdmin = () => (
     <div className="space-y-12">
-      {/* Post Oluşturma */}
+      {/* Create Post */}
       <div className="bg-osint-card border border-[#333] rounded-lg p-6">
         <h2 className="text-xl font-mono text-white mb-6 flex items-center">
-          <FileText className="mr-2 text-osint-green" /> YENİ KAYIT OLUŞTUR
+          <FileText className="mr-2 text-osint-green" /> NEW INTELLIGENCE REPORT
         </h2>
         <form onSubmit={handleAddPost} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-osint-green font-mono text-sm mb-1">BAŞLIK</label>
+              <label className="block text-osint-green font-mono text-sm mb-1">CASE TITLE</label>
               <input 
                 name="title" 
                 type="text" 
@@ -274,28 +253,28 @@ const App = () => {
               />
             </div>
             <div>
-              <label className="block text-osint-green font-mono text-sm mb-1">YAZAR</label>
+              <label className="block text-osint-green font-mono text-sm mb-1">ANALYST</label>
               <input 
                 name="author" 
                 type="text" 
-                defaultValue={user?.username}
+                defaultValue="NorthByte Analyst"
                 className="w-full bg-[#121212] border border-[#333] text-white p-3 rounded focus:outline-none focus:border-osint-green font-mono"
                 required 
               />
             </div>
           </div>
           <div>
-            <label className="block text-osint-green font-mono text-sm mb-1">İÇERİK</label>
+            <label className="block text-osint-green font-mono text-sm mb-1">INTELLIGENCE DATA</label>
             <textarea 
               name="content" 
               rows={8}
               className="w-full bg-[#121212] border border-[#333] text-white p-3 rounded focus:outline-none focus:border-osint-green font-sans"
-              placeholder="Analiz detaylarını buraya girin..."
+              placeholder="Enter analysis here..."
               required 
             ></textarea>
           </div>
           <div>
-            <label className="block text-osint-green font-mono text-sm mb-1">DOSYA EKİ (Görsel olarak)</label>
+            <label className="block text-osint-green font-mono text-sm mb-1">ATTACHMENTS</label>
             <input 
               name="files" 
               type="file" 
@@ -307,21 +286,21 @@ const App = () => {
             type="submit" 
             className="bg-osint-green text-black font-bold font-mono px-6 py-3 rounded hover:bg-opacity-90 transition-all"
           >
-            YAYINLA
+            PUBLISH TO NETWORK
           </button>
         </form>
       </div>
 
-      {/* Mevcut Postlar Listesi */}
+      {/* Existing Posts List */}
       <div className="bg-osint-card border border-[#333] rounded-lg p-6">
-        <h2 className="text-xl font-mono text-white mb-6">MEVCUT KAYITLAR</h2>
+        <h2 className="text-xl font-mono text-white mb-6">DATABASE RECORDS</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse font-mono text-sm">
             <thead>
               <tr className="border-b border-[#333] text-osint-green">
-                <th className="p-3">TARİH</th>
-                <th className="p-3">BAŞLIK</th>
-                <th className="p-3">İŞLEM</th>
+                <th className="p-3">DATE</th>
+                <th className="p-3">TITLE</th>
+                <th className="p-3">ACTION</th>
               </tr>
             </thead>
             <tbody>
@@ -334,37 +313,31 @@ const App = () => {
                       onClick={() => handleDeletePost(post.id)}
                       className="text-osint-danger hover:text-red-400 flex items-center"
                     >
-                      <Trash2 size={16} className="mr-1" /> SİL
+                      <Trash2 size={16} className="mr-1" /> DELETE
                     </button>
                   </td>
                 </tr>
               ))}
+              {posts.length === 0 && (
+                 <tr>
+                   <td className="p-3 text-osint-muted" colSpan={3}>
+                     No records in database.
+                   </td>
+                 </tr>
+              )}
             </tbody>
           </table>
-          {posts.length === 0 && (
-            <div className="p-4 text-center text-osint-muted">Hiç kayıt yok.</div>
-          )}
         </div>
       </div>
     </div>
   );
-
-  const renderContent = () => {
-    switch (view) {
-      case 'home': return renderHome();
-      case 'post': return renderPostDetail();
-      case 'login': return renderLogin();
-      case 'admin': return user ? renderAdmin() : renderLogin();
-      default: return renderHome();
-    }
-  };
 
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-osint-green selection:text-black">
       {/* Header */}
       <header className="border-b border-[#333] py-8 text-center bg-[#121212]">
         <div className="max-w-4xl mx-auto px-4">
-          <h1 className="text-4xl md:text-5xl font-mono text-white mb-2 tracking-tighter cursor-pointer" onClick={() => { setActivePostId(null); setView('home'); }}>
+          <h1 className="text-4xl md:text-5xl font-mono text-white mb-2 tracking-tighter cursor-pointer" onClick={() => setView('home')}>
             Fact<span className="text-osint-green">Shield</span>.no
           </h1>
           <p className="text-osint-muted font-sans text-lg mb-4">Sannhetens Voktere - Vokter av Fakta, Ikke Meninger.</p>
@@ -374,10 +347,10 @@ const App = () => {
           
           <nav className="mt-6 flex justify-center space-x-6 text-sm font-mono text-osint-muted">
             <button 
-              onClick={() => { setActivePostId(null); setView('home'); }} 
-              className={`hover:text-osint-green transition-colors ${view === 'home' || view === 'post' ? 'text-white' : ''}`}
+              onClick={() => setView('home')} 
+              className={`hover:text-osint-green transition-colors ${view === 'home' ? 'text-white' : ''}`}
             >
-              ANA SAYFA
+              HOME
             </button>
             {user ? (
               <>
@@ -385,13 +358,13 @@ const App = () => {
                   onClick={() => setView('admin')} 
                   className={`hover:text-osint-green transition-colors ${view === 'admin' ? 'text-white' : ''}`}
                 >
-                  PANEL
+                  DASHBOARD
                 </button>
                 <button 
                   onClick={handleLogout} 
                   className="hover:text-osint-danger transition-colors flex items-center"
                 >
-                  ÇIKIŞ
+                  LOGOUT
                 </button>
               </>
             ) : (
@@ -399,7 +372,7 @@ const App = () => {
                 onClick={() => setView('login')} 
                 className={`hover:text-osint-green transition-colors ${view === 'login' ? 'text-white' : ''}`}
               >
-                GİRİŞ
+                ADMIN ACCESS
               </button>
             )}
           </nav>
@@ -414,17 +387,20 @@ const App = () => {
               ? 'bg-green-900/20 border-osint-green text-osint-green' 
               : 'bg-red-900/20 border-osint-danger text-osint-danger'
           }`}>
-            [{new Date().toLocaleTimeString()}] SİSTEM: {notifications.msg}
+            [{new Date().toLocaleTimeString()}] SYSTEM: {notifications.msg}
           </div>
         )}
         
-        {renderContent()}
+        {view === 'home' && renderHome()}
+        {view === 'post' && renderPostDetail()}
+        {view === 'login' && renderLogin()}
+        {view === 'admin' && (user ? renderAdmin() : renderLogin())}
       </main>
 
       {/* Footer */}
       <footer className="border-t border-[#333] py-8 text-center text-osint-muted text-sm font-mono bg-[#121212]">
-        <p>&copy; 2026 FactShield.no | Bağımsız Operasyon</p>
-        <p className="mt-2 text-xs opacity-50">Güvenli Bağlantı Kuruldu.</p>
+        <p>&copy; 2026 FactShield.no | Independent Operation</p>
+        <p className="mt-2 text-xs opacity-50">Secure Connection Established. Logging Active.</p>
       </footer>
     </div>
   );
