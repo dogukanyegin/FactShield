@@ -43,8 +43,8 @@ type FactShieldRow = {
   title: string;
   author: string | null;
   content: string | null;
-  date: string | null; // timestamp/text gelebilir
-  files: unknown | null; // ✅ DB json: Supabase bunu unknown döndürebilir
+  date: string | null;
+  files: unknown | null; // ✅ DB'de json: Supabase tarafında unknown gelebilir
 };
 
 function toDateYMD(value: string | null): string {
@@ -57,27 +57,30 @@ function toDateYMD(value: string | null): string {
 function parseFiles(v: unknown): string[] {
   if (v == null) return [];
 
-  // ✅ Supabase json alanı array döndürebilir
+  // ✅ Supabase json alanı çoğu zaman direkt array döndürür
   if (Array.isArray(v)) return v.map((x) => String(x));
 
-  // ✅ Bazı durumlarda json alanı obje/string olarak da gelebilir
+  // ✅ Bazı durumlarda json string / csv string gelebilir
   if (typeof v === "string") {
-    // "[]", '["a","b"]' gibi json string gelirse
+    const s = v.trim();
+    if (!s) return [];
+
+    // "[]", '["a","b"]' gibi json-string ise parse et
     try {
-      const parsed = JSON.parse(v);
+      const parsed = JSON.parse(s);
       if (Array.isArray(parsed)) return parsed.map((x) => String(x));
     } catch {
       // ignore
     }
 
-    // "a,b,c" gibi düz string gelirse
-    return v
+    // "a,b,c" gibi düz string ise ayır
+    return s
       .split(",")
-      .map((s) => s.trim())
+      .map((x) => x.trim())
       .filter(Boolean);
   }
 
-  // ✅ json obje gelirse ama biz array bekliyorsak: boş dön
+  // ✅ json obje gelirse (beklenmiyor) -> []
   return [];
 }
 
@@ -135,7 +138,7 @@ const App = () => {
         author: row.author ?? "NorthByte Analyst",
         content: row.content ?? "",
         date: toDateYMD(row.date),
-        files: parseFiles(row.files), // ✅ json -> string[]
+        files: parseFiles(row.files),
       }));
 
       setPosts(mapped);
@@ -250,8 +253,10 @@ const App = () => {
         title,
         author,
         content,
-        date: new Date().toISOString(), // timestamp
-        files: fileNames, // ✅ json kolona array yazılır
+        // DB'de timestamp var: ISO gönder
+        date: new Date().toISOString(),
+        // json array
+        files: fileNames,
       };
 
       const { data, error } = await supabase
@@ -338,9 +343,8 @@ const App = () => {
               <span>ANALYST: {post.author}</span>
             </div>
 
-            <p className="text-osint-text mb-6 font-sans whitespace-pre-wrap">
-              {post.content}
-            </p>
+            {/* ✅ KISIT YOK: line-clamp yok */}
+            <p className="text-osint-text mb-6 font-sans whitespace-pre-wrap">{post.content}</p>
 
             <button
               onClick={() => {
@@ -547,7 +551,79 @@ const App = () => {
 
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-osint-green selection:text-black">
-      {/* ... geri kalan UI aynı ... */}
+      <header className="border-b border-[#333] py-8 text-center bg-[#121212]">
+        <div className="max-w-4xl mx-auto px-4">
+          <h1
+            className="text-4xl md:text-5xl font-mono text-white mb-2 tracking-tighter cursor-pointer"
+            onClick={() => setView("home")}
+          >
+            Fact<span className="text-osint-green">Shield</span>.no
+          </h1>
+          <p className="text-osint-muted font-sans text-lg mb-4">
+            Sannhetens Voktere - Vokter av Fakta, Ikke Meninger.
+          </p>
+          <div className="text-xs font-mono text-osint-green">
+            POWERED BY{" "}
+            <a href="#" className="font-bold underline decoration-dotted">
+              NORTHBYTE OSINT DIVISION
+            </a>
+          </div>
+
+          <nav className="mt-6 flex justify-center space-x-6 text-sm font-mono text-osint-muted">
+            <button
+              onClick={() => setView("home")}
+              className={`hover:text-osint-green transition-colors ${view === "home" ? "text-white" : ""}`}
+            >
+              HOME
+            </button>
+
+            {canShowAdminNav ? (
+              <>
+                <button
+                  onClick={() => setView("admin")}
+                  className={`hover:text-osint-green transition-colors ${view === "admin" ? "text-white" : ""}`}
+                >
+                  DASHBOARD
+                </button>
+                <button onClick={handleLogout} className="hover:text-osint-danger transition-colors flex items-center">
+                  LOGOUT
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setView("login")}
+                className={`hover:text-osint-green transition-colors ${view === "login" ? "text-white" : ""}`}
+              >
+                ADMIN ACCESS
+              </button>
+            )}
+          </nav>
+        </div>
+      </header>
+
+      <main className="flex-grow container max-w-4xl mx-auto px-4 py-8">
+        {notifications && (
+          <div
+            className={`mb-6 p-4 rounded border font-mono ${
+              notifications.type === "success"
+                ? "bg-green-900/20 border-osint-green text-osint-green"
+                : "bg-red-900/20 border-osint-danger text-osint-danger"
+            }`}
+          >
+            [{new Date().toLocaleTimeString()}] SYSTEM: {notifications.msg}
+          </div>
+        )}
+
+        {view === "home" && renderHome()}
+        {view === "post" && renderPostDetail()}
+        {view === "login" && renderLogin()}
+        {view === "admin" && (user ? renderAdmin() : renderLogin())}
+      </main>
+
+      <footer className="border-t border-[#333] py-8 text-center text-osint-muted text-sm font-mono bg-[#121212]">
+        <p>&copy; 2026 FactShield.no | Independent Operation</p>
+        <p className="mt-2 text-xs opacity-50">Secure Connection Established. Logging Active.</p>
+      </footer>
     </div>
   );
 };
