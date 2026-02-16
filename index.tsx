@@ -12,14 +12,14 @@ const SUPABASE_URL = "https://onnsaeorzwzgusdamqdi.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ubnNhZW9yend6Z3VzZGFtcWRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwOTA1MzcsImV4cCI6MjA4NjY2NjUzN30.Z89JNhn0c1X0FgPP5w45UxzQ3_rg2XSdApyPLI1x1BQ";
 
-// ✅ Session persist + refresh + localStorage (session yok problemini çözer)
+// ✅ Session persist + refresh + localStorage
+// ❗ storageKey'i kaldırdım (default daha stabil)
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
     storage: typeof window !== "undefined" ? window.localStorage : undefined,
-    storageKey: "factshield-auth",
   },
 });
 
@@ -27,10 +27,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 // @ts-ignore
 if (typeof window !== "undefined") (window as any).supabase = supabase;
 
-// ✅ TABLO ADI (SENİN DB’DE: public.factshield)
 const TABLE = "factshield";
-
-// UI: admin/admin123 -> Supabase Auth email ile giriş
 const ADMIN_EMAIL = "dogukan.yegin@hotmail.com";
 
 /**
@@ -57,7 +54,7 @@ type FactShieldRow = {
   author: string | null;
   content: string | null;
   date: string | null;
-  files: unknown | null; // ✅ DB'de json: Supabase tarafında unknown gelebilir
+  files: unknown | null;
 };
 
 function toDateYMD(value: string | null): string {
@@ -69,31 +66,21 @@ function toDateYMD(value: string | null): string {
 
 function parseFiles(v: unknown): string[] {
   if (v == null) return [];
-
-  // ✅ Supabase json alanı çoğu zaman direkt array döndürür
   if (Array.isArray(v)) return v.map((x) => String(x));
-
-  // ✅ Bazı durumlarda json string / csv string gelebilir
   if (typeof v === "string") {
     const s = v.trim();
     if (!s) return [];
-
-    // "[]", '["a","b"]' gibi json-string ise parse et
     try {
       const parsed = JSON.parse(s);
       if (Array.isArray(parsed)) return parsed.map((x) => String(x));
     } catch {
       // ignore
     }
-
-    // "a,b,c" gibi düz string ise ayır
     return s
       .split(",")
       .map((x) => x.trim())
       .filter(Boolean);
   }
-
-  // ✅ json obje gelirse (beklenmiyor) -> []
   return [];
 }
 
@@ -171,13 +158,13 @@ const App = () => {
     let mounted = true;
 
     (async () => {
-      const { data, error } = await supabase.auth.getSession();
-
+      // ✅ getSession yerine getUser: gerçek auth doğrulama
+      const { data: u, error } = await supabase.auth.getUser();
       if (!mounted) return;
 
       if (error) showNotification(error.message, "error");
 
-      const email = data.session?.user?.email ?? null;
+      const email = u.user?.email ?? null;
       if (email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) setUser({ username: "admin" });
       else setUser(null);
 
@@ -197,8 +184,34 @@ const App = () => {
       mounted = false;
       sub.subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * =========================
+   *  AUTH GUARD (publish/delete için)
+   * =========================
+   */
+  const ensureAdmin = async (): Promise<boolean> => {
+    const { data: u, error } = await supabase.auth.getUser();
+    if (error) {
+      showNotification(error.message, "error");
+      return false;
+    }
+    if (!u.user) {
+      showNotification("Unauthorized: Please login again.", "error");
+      setView("login");
+      return false;
+    }
+    const email = (u.user.email ?? "").toLowerCase();
+    if (email !== ADMIN_EMAIL.toLowerCase()) {
+      showNotification("Access Denied: Not authorized for admin.", "error");
+      await supabase.auth.signOut();
+      setUser(null);
+      setView("login");
+      return false;
+    }
+    return true;
+  };
 
   /**
    * =========================
@@ -217,7 +230,8 @@ const App = () => {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
+    // ✅ Login sonrası getSession çağırma; data.user kullan
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: ADMIN_EMAIL,
       password,
     });
@@ -227,19 +241,9 @@ const App = () => {
       return;
     }
 
-    // ✅ Login sonrası session zorunlu doğrulama
-    const { data: sess, error: sessErr } = await supabase.auth.getSession();
-    if (sessErr) {
-      showNotification(sessErr.message, "error");
-      return;
-    }
-
-    const sUser = sess.session?.user ?? null;
+    const sUser = data.user ?? null;
     if (!sUser) {
-      showNotification(
-        "Login OK but session missing. Browser may block storage/cookies (try incognito, disable adblock/tracking prevention).",
-        "error"
-      );
+      showNotification("Login OK but user missing. Please try again.", "error");
       return;
     }
 
@@ -259,6 +263,7 @@ const App = () => {
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) showNotification(error.message, "error");
+    setUser(null);
     setView("home");
     showNotification("Logged Out", "success");
   };
@@ -273,19 +278,13 @@ const App = () => {
 
     if (!user) {
       showNotification("Unauthorized: Please login", "error");
+      setView("login");
       return;
     }
 
-    // ✅ Session yoksa publish'e girmeden dur (PUBLISHING takılmasını bitirir)
-    const { data: sess, error: sessErr } = await supabase.auth.getSession();
-    if (sessErr) {
-      showNotification(sessErr.message, "error");
-      return;
-    }
-    if (!sess.session?.user) {
-      showNotification("Unauthorized: Session missing. Please login again.", "error");
-      return;
-    }
+    // ✅ getSession yerine getUser guard
+    const ok = await ensureAdmin();
+    if (!ok) return;
 
     const form = e.target as HTMLFormElement;
     const title = (form.elements.namedItem("title") as HTMLInputElement).value;
@@ -312,7 +311,9 @@ const App = () => {
         .single();
 
       if (error) {
-        showNotification(error.message, "error");
+        // daha teşhisli mesaj:
+        const extra = [error.code, (error as any).details, (error as any).hint].filter(Boolean).join(" | ");
+        showNotification(extra ? `${error.message} | ${extra}` : error.message, "error");
         return;
       }
 
@@ -339,25 +340,19 @@ const App = () => {
   const handleDeletePost = async (id: number) => {
     if (!user) {
       showNotification("Unauthorized: Please login", "error");
+      setView("login");
       return;
     }
 
-    // ✅ Session yoksa delete yapma
-    const { data: sess, error: sessErr } = await supabase.auth.getSession();
-    if (sessErr) {
-      showNotification(sessErr.message, "error");
-      return;
-    }
-    if (!sess.session?.user) {
-      showNotification("Unauthorized: Session missing. Please login again.", "error");
-      return;
-    }
+    const ok = await ensureAdmin();
+    if (!ok) return;
 
     if (!confirm("Confirm Deletion: This action is irreversible.")) return;
 
     const { error } = await supabase.from(TABLE).delete().eq("id", id);
     if (error) {
-      showNotification(error.message, "error");
+      const extra = [error.code, (error as any).details, (error as any).hint].filter(Boolean).join(" | ");
+      showNotification(extra ? `${error.message} | ${extra}` : error.message, "error");
       return;
     }
 
@@ -400,7 +395,6 @@ const App = () => {
               <span>ANALYST: {post.author}</span>
             </div>
 
-            {/* ✅ KISIT YOK: line-clamp yok */}
             <p className="text-osint-text mb-6 font-sans whitespace-pre-wrap">{post.content}</p>
 
             <button
@@ -474,10 +468,7 @@ const App = () => {
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label
-              htmlFor="login-username"
-              className="block text-osint-green font-mono text-sm mb-1"
-            >
+            <label htmlFor="login-username" className="block text-osint-green font-mono text-sm mb-1">
               CODENAME
             </label>
             <input
@@ -490,10 +481,7 @@ const App = () => {
             />
           </div>
           <div>
-            <label
-              htmlFor="login-password"
-              className="block text-osint-green font-mono text-sm mb-1"
-            >
+            <label htmlFor="login-password" className="block text-osint-green font-mono text-sm mb-1">
               ACCESS KEY
             </label>
             <input
@@ -528,10 +516,7 @@ const App = () => {
         <form onSubmit={handleAddPost} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label
-                htmlFor="post-title"
-                className="block text-osint-green font-mono text-sm mb-1"
-              >
+              <label htmlFor="post-title" className="block text-osint-green font-mono text-sm mb-1">
                 CASE TITLE
               </label>
               <input
@@ -543,10 +528,7 @@ const App = () => {
               />
             </div>
             <div>
-              <label
-                htmlFor="post-author"
-                className="block text-osint-green font-mono text-sm mb-1"
-              >
+              <label htmlFor="post-author" className="block text-osint-green font-mono text-sm mb-1">
                 ANALYST
               </label>
               <input
@@ -560,10 +542,7 @@ const App = () => {
             </div>
           </div>
           <div>
-            <label
-              htmlFor="post-content"
-              className="block text-osint-green font-mono text-sm mb-1"
-            >
+            <label htmlFor="post-content" className="block text-osint-green font-mono text-sm mb-1">
               INTELLIGENCE DATA
             </label>
             <textarea
@@ -576,10 +555,7 @@ const App = () => {
             ></textarea>
           </div>
           <div>
-            <label
-              htmlFor="post-files"
-              className="block text-osint-green font-mono text-sm mb-1"
-            >
+            <label htmlFor="post-files" className="block text-osint-green font-mono text-sm mb-1">
               ATTACHMENTS
             </label>
             <input
