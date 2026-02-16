@@ -218,14 +218,7 @@
             <p>Sannhetens Voktere - Vokter av Fakta, Ikke Meninger.</p>
             <p class="powered-by">Et sosialt ansvarsprosjekt av <a href="https://dogukanyegin.github.io/NorthByte/" target="_blank">NorthByte</a></p>
             
-            <div class="nav-links">
-                <a href="{{ url_for('index') }}">Hjem</a>
-                {% if current_user.is_authenticated %}
-                <a href="{{ url_for('admin_dashboard') }}">Admin Panel</a>
-                <a href="{{ url_for('logout') }}">Logg ut</a>
-                {% else %}
-                <a href="{{ url_for('login') }}">Admin Login</a>
-                {% endif %}
+            
             </div>
         </div>
     </header>
