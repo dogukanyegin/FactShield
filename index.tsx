@@ -93,6 +93,13 @@ function parseFiles(v: unknown): string[] {
   return [];
 }
 
+/** ✅ HOME sayfasında sadece özet göstermek için */
+function excerpt(text: string, max = 420) {
+  const s = (text ?? "").trim();
+  if (s.length <= max) return s;
+  return s.slice(0, max).trimEnd() + "…";
+}
+
 function isAbortError(err: unknown) {
   return err instanceof DOMException && err.name === "AbortError";
 }
@@ -405,7 +412,10 @@ const App = () => {
               <span>ANALYST: {post.author}</span>
             </div>
 
-            <p className="text-osint-text mb-6 font-sans whitespace-pre-wrap">{post.content}</p>
+            {/* ✅ HOME: sadece özet */}
+            <p className="text-osint-text mb-6 font-sans whitespace-pre-wrap">
+              {excerpt(post.content, 420)}
+            </p>
 
             <button
               onClick={() => {
@@ -443,6 +453,7 @@ const App = () => {
           <span>ANALYST: {activePost.author}</span>
         </div>
 
+        {/* ✅ DETAIL: full content (aynı kaldı) */}
         <div className="prose prose-invert max-w-none font-sans whitespace-pre-wrap text-lg leading-relaxed mb-8">
           {activePost.content}
         </div>
