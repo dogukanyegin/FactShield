@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrity Declaration | FactShield Core</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Source+Sans+Pro:wght@400;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "osint-dark": "#0a0a0a",
+                        "osint-card": "#121212",
+                        "osint-green": "#00BFA5",
+                        "osint-gold": "#D4AF37",
+                        "osint-text": "#E0E0E0",
+                        "osint-muted": "#888888",
+                        "osint-border": "#333333"
+                    },
+                    fontFamily: {
+                        mono: ['"Roboto Mono"', "monospace"],
+                        sans: ['"Source Sans Pro"', "sans-serif"],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #e0e0e0;
+        }
+        /* Özel Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00BFA5; }
+        
+        .fade-in { animation: fadeIn 0.8s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="font-sans min-h-screen flex flex-col selection:bg-osint-green selection:text-black">
+
+    <header class="border-b border-osint-border py-10 text-center bg-[#111]">
+        <div class="max-w-4xl mx-auto px-4">
+            <h1 class="text-4xl md:text-5xl font-mono text-white mb-2 tracking-tighter cursor-pointer" onclick="window.location.href='/'">
+                Fact<span class="text-osint-green">Shield</span>.no
+            </h1>
+            <p class="text-osint-muted text-lg font-light tracking-wide">Independent Intelligence Operation</p>
+            
+            <nav class="mt-8 flex justify-center space-x-10 text-xs font-mono tracking-[0.2em]">
+                <a href="/" class="text-osint-muted hover:text-white transition-all pb-1 border-b border-transparent hover:border-white no-underline">
+                    HOME
+                </a>
+                <span class="text-osint-gold border-b border-osint-gold pb-1 cursor-default">
+                    USKYLD ANALYSE
+                </span>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow container max-w-4xl mx-auto px-6 py-12 fade-in">
+        
+        <div class="bg-osint-card border border-osint-gold rounded-lg p-8 md:p-12 shadow-2xl relative overflow-hidden">
+            
+            <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <path d="M9 12l2 2 4-4"></path>
+                </svg>
+            </div>
+
+            <div class="text-center mb-10 border-b border-osint-border pb-8">
+                <svg class="mx-auto text-osint-gold mb-4" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                
+                <h1 class="text-2xl md:text-3xl font-mono text-white tracking-widest uppercase mb-2">
+                    Integrity Declaration
+                </h1>
+                <p class="text-[10px] text-osint-muted font-mono tracking-[0.3em] uppercase">
+                    Official Research Statement #2026-USKYLD
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 font-sans">
+                
+                <section class="space-y-4">
+                    <h2 class="text-osint-gold font-mono text-xs tracking-widest uppercase flex items-center">
+                        <span class="w-2 h-2 bg-osint-gold mr-2 rounded-full"></span> English Version
+                    </h2>
+                    <h3 class="text-white font-bold text-lg uppercase leading-tight">
+                        Subject: Analytical Defense of Institutional Integrity
+                    </h3>
+                    <p class="text-osint-text leading-relaxed text-base opacity-90 border-l-2 border-osint-border pl-4">
+                        The documents presented on this platform are curated from publicly available archives (specifically DOJ/US Judicial records). 
+                        My objective is not the dissemination of sensitive information, but rather the <strong class="text-white">Fact-Based Analysis</strong> of historical data to counteract misinformation.
+                    </p>
+                    <p class="text-osint-muted text-sm leading-relaxed">
+                        As a licensed independent analyst, I provide this context to prove the moral boundaries maintained by the Norwegian Crown. 
+                        This study serves as a digital archive for security protocols and as a testament to the innocence (Uskyld) of HKH Crown Princess Mette-Marit.
+                    </p>
+                </section>
+
+                <section class="space-y-4 md:border-l md:border-osint-border md:pl-8">
+                    <h2 class="text-osint-gold font-mono text-xs tracking-widest uppercase flex items-center">
+                        <span class="w-2 h-2 bg-osint-gold mr-2 rounded-full"></span> Norsk Versjon
+                    </h2>
+                    <h3 class="text-white font-bold text-lg uppercase leading-tight">
+                        Emne: Analytisk forsvar av institusjonell integritet
+                    </h3>
+                    <p class="text-osint-text leading-relaxed text-base opacity-90 border-l-2 border-osint-border pl-4">
+                        Dokumentene som presenteres på denne plattformen er hentet fra offentlig tilgjengelige arkiver. 
+                        Mitt mål er ikke spredning av sensitiv informasjon, men snarere en <strong class="text-white">faktabasert analyse</strong> av historiske data for å motvirke feilinformasjon.
+                    </p>
+                    <p class="text-osint-muted text-sm leading-relaxed">
+                        Som en uavhengig analytiker gir jeg denne konteksten for å bevise de moralske grensene som ble opprettholdt av det norske kongehuset. 
+                        Denne studien fungerer som et digitalt
