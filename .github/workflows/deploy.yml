@@ -4,13 +4,11 @@ on:
   push:
     branches: [ main ]
 
-# GitHub Pages için gerekli izinler
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Aynı anda birden fazla build çalışmasını önler
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -26,11 +24,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # cache: 'npm' satırını BURADAN SİLDİK. Artık hata vermeyecek.
+          # cache kapalı, sorun yok.
 
       - name: Install dependencies
-        run: npm install
-        # 'npm ci' yerine 'npm install' kullandık. Lock dosyası olmasa da kuracak.
+        run: |
+          npm install
+          npm install @supabase/supabase-js lucide-react react react-dom
 
       - name: Build
         run: npm run build
