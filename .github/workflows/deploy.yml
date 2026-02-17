@@ -2,12 +2,18 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ] # Eğer dalının adı 'master' ise burayı değiştir
+    branches: [ main ]
 
+# GitHub Pages için gerekli izinler
 permissions:
   contents: read
   pages: write
   id-token: write
+
+# Aynı anda birden fazla build çalışmasını önler
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -20,10 +26,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          # cache: 'npm' satırını BURADAN SİLDİK. Artık hata vermeyecek.
 
       - name: Install dependencies
         run: npm install
+        # 'npm ci' yerine 'npm install' kullandık. Lock dosyası olmasa da kuracak.
 
       - name: Build
         run: npm run build
@@ -31,7 +38,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist # Vite varsayılan olarak 'dist' klasörüne çıkarır
+          path: ./dist
 
   deploy:
     environment:
