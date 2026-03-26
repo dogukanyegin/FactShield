@@ -163,7 +163,7 @@ const App = () => {
             </button>
 
             {/* ✅ YENI: Integrity Arşivine Geçiş Linki */}
-            <a href="/factshield/uskyld-analyse.html" className="text-[#d4af37] hover:text-white transition-all pb-1 border-b border-transparent hover:border-white">
+            <a href="/nordicfactshield.norway/uskyld-analyse.html" className="text-[#d4af37] hover:text-white transition-all pb-1 border-b border-transparent hover:border-white">
               USKYLD ANALYSE
             </a>
           </nav>
