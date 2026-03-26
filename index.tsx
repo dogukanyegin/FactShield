@@ -155,7 +155,13 @@ const App = () => {
           <h1 className="text-4xl md:text-5xl font-mono text-white mb-2 tracking-tighter cursor-pointer" onClick={() => setView("home")}>
             Fact<span className="text-osint-green">Shield</span>.no
           </h1>
-          <p className="text-osint-muted text-lg font-light">Independent Intelligence Operation</p>
+          <p className="text-osint-muted text-lg font-light">Nordic FactShield is an independent, non-partisan OSINT and digital investigation initiative.
+
+We are not affiliated with any government, intelligence agency, political organization, or media institution.
+
+Our work is based on open-source intelligence, data analysis, and transparent methodologies.We analyze high-profile cases, including the Epstein network, using verifiable data and open-source intelligence. 
+
+Being mentioned in investigative documents does not equate to criminal involvement. Our work focuses on separating verified facts from speculation, misinformation, and narrative distortion.</p>
           
           <nav className="mt-8 flex justify-center space-x-8 text-xs font-mono tracking-[0.2em]">
             <button onClick={() => setView("home")} className={`pb-1 transition-all ${view === "home" ? "text-white border-b border-white" : "text-osint-muted hover:text-white"}`}>
